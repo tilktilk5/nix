@@ -1,0 +1,75 @@
+Running phase: qtPreHook
+@nix { "action": "setPhase", "phase": "qtPreHook" }
+Running phase: unpackPhase
+@nix { "action": "setPhase", "phase": "unpackPhase" }
+unpacking source archive /nix/store/f0sbrgwzabcrdf6nlrdmqd82gm9ljlg7-source
+source root is source
+Running phase: patchPhase
+@nix { "action": "setPhase", "phase": "patchPhase" }
+Running phase: updateAutotoolsGnuConfigScriptsPhase
+@nix { "action": "setPhase", "phase": "updateAutotoolsGnuConfigScriptsPhase" }
+Running phase: configurePhase
+@nix { "action": "setPhase", "phase": "configurePhase" }
+cmake flags: -DCMAKE_FIND_USE_SYSTEM_PACKAGE_REGISTRY=OFF -DCMAKE_FIND_USE_PACKAGE_REGISTRY=OFF -DCMAKE_EXPORT_NO_PACKAGE_REGISTRY=ON -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF -DCMAKE_INSTALL_LOCALEDIR=/nix/store/8dh3qi359x01xdj1b4xp1mh6mq5swmkk-aerothemeplasma-notifications-2026-03-02/share/locale -DCMAKE_INSTALL_LIBEXECDIR=/nix/store/8dh3qi359x01xdj1b4xp1mh6mq5swmkk-aerothemeplasma-notifications-2026-03-02/libexec -DCMAKE_INSTALL_LIBDIR=/nix/store/8dh3qi359x01xdj1b4xp1mh6mq5swmkk-aerothemeplasma-notifications-2026-03-02/lib -DCMAKE_INSTALL_DOCDIR=/nix/store/8dh3qi359x01xdj1b4xp1mh6mq5swmkk-aerothemeplasma-notifications-2026-03-02/share/doc/aerothemeplasma-notifications -DCMAKE_INSTALL_INFODIR=/nix/store/8dh3qi359x01xdj1b4xp1mh6mq5swmkk-aerothemeplasma-notifications-2026-03-02/share/info -DCMAKE_INSTALL_MANDIR=/nix/store/8dh3qi359x01xdj1b4xp1mh6mq5swmkk-aerothemeplasma-notifications-2026-03-02/share/man -DCMAKE_INSTALL_INCLUDEDIR=/nix/store/8dh3qi359x01xdj1b4xp1mh6mq5swmkk-aerothemeplasma-notifications-2026-03-02/include -DCMAKE_INSTALL_SBINDIR=/nix/store/8dh3qi359x01xdj1b4xp1mh6mq5swmkk-aerothemeplasma-notifications-2026-03-02/sbin -DCMAKE_INSTALL_BINDIR=/nix/store/8dh3qi359x01xdj1b4xp1mh6mq5swmkk-aerothemeplasma-notifications-2026-03-02/bin -DCMAKE_INSTALL_NAME_DIR=/nix/store/8dh3qi359x01xdj1b4xp1mh6mq5swmkk-aerothemeplasma-notifications-2026-03-02/lib -DCMAKE_STRIP=/nix/store/hb2bs5fg5wkm04x565737qd5nh2hy5nk-gcc-wrapper-15.2.0/bin/strip -DCMAKE_RANLIB=/nix/store/hb2bs5fg5wkm04x565737qd5nh2hy5nk-gcc-wrapper-15.2.0/bin/ranlib -DCMAKE_AR=/nix/store/hb2bs5fg5wkm04x565737qd5nh2hy5nk-gcc-wrapper-15.2.0/bin/ar -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_INSTALL_PREFIX=/nix/store/8dh3qi359x01xdj1b4xp1mh6mq5swmkk-aerothemeplasma-notifications-2026-03-02 -DKDE_INSTALL_EXECROOTDIR=/nix/store/8dh3qi359x01xdj1b4xp1mh6mq5swmkk-aerothemeplasma-notifications-2026-03-02 -DKDE_INSTALL_BINDIR=/nix/store/8dh3qi359x01xdj1b4xp1mh6mq5swmkk-aerothemeplasma-notifications-2026-03-02/bin -DKDE_INSTALL_SBINDIR=/nix/store/8dh3qi359x01xdj1b4xp1mh6mq5swmkk-aerothemeplasma-notifications-2026-03-02/sbin -DKDE_INSTALL_LIBDIR=/nix/store/8dh3qi359x01xdj1b4xp1mh6mq5swmkk-aerothemeplasma-notifications-2026-03-02/lib -DKDE_INSTALL_LIBEXECDIR=/nix/store/8dh3qi359x01xdj1b4xp1mh6mq5swmkk-aerothemeplasma-notifications-2026-03-02/libexec -DKDE_INSTALL_CMAKEPACKAGEDIR=/nix/store/8dh3qi359x01xdj1b4xp1mh6mq5swmkk-aerothemeplasma-notifications-2026-03-02/lib/cmake -DKDE_INSTALL_QTPLUGINDIR=/nix/store/8dh3qi359x01xdj1b4xp1mh6mq5swmkk-aerothemeplasma-notifications-2026-03-02/lib/qt-6/plugins -DKDE_INSTALL_PLUGINDIR=/nix/store/8dh3qi359x01xdj1b4xp1mh6mq5swmkk-aerothemeplasma-notifications-2026-03-02/lib/qt-6/plugins -DKDE_INSTALL_QMLDIR=/nix/store/8dh3qi359x01xdj1b4xp1mh6mq5swmkk-aerothemeplasma-notifications-2026-03-02/lib/qt-6/qml -DKDE_INSTALL_INCLUDEDIR=/nix/store/8dh3qi359x01xdj1b4xp1mh6mq5swmkk-aerothemeplasma-notifications-2026-03-02/include -DKDE_INSTALL_LOCALSTATEDIR=/var -DKDE_INSTALL_SHAREDSTATEDIR=/com -DKDE_INSTALL_DATAROOTDIR=/nix/store/8dh3qi359x01xdj1b4xp1mh6mq5swmkk-aerothemeplasma-notifications-2026-03-02/share -DKDE_INSTALL_DATADIR=/nix/store/8dh3qi359x01xdj1b4xp1mh6mq5swmkk-aerothemeplasma-notifications-2026-03-02/share -DKDE_INSTALL_DOCBUNDLEDIR=/nix/store/8dh3qi359x01xdj1b4xp1mh6mq5swmkk-aerothemeplasma-notifications-2026-03-02/share/doc/HTML -DKDE_INSTALL_KCFGDIR=/nix/store/8dh3qi359x01xdj1b4xp1mh6mq5swmkk-aerothemeplasma-notifications-2026-03-02/share/config.kcfg -DKDE_INSTALL_KCONFUPDATEDIR=/nix/store/8dh3qi359x01xdj1b4xp1mh6mq5swmkk-aerothemeplasma-notifications-2026-03-02/share/kconf_update -DKDE_INSTALL_KAPPTEMPLATESDIR=/nix/store/8dh3qi359x01xdj1b4xp1mh6mq5swmkk-aerothemeplasma-notifications-2026-03-02/share/kdevappwizard/templates -DKDE_INSTALL_KFILETEMPLATESDIR=/nix/store/8dh3qi359x01xdj1b4xp1mh6mq5swmkk-aerothemeplasma-notifications-2026-03-02/share/kdevfiletemplates/templates -DKDE_INSTALL_KXMLGUIDIR=/nix/store/8dh3qi359x01xdj1b4xp1mh6mq5swmkk-aerothemeplasma-notifications-2026-03-02/share/kxmlgui5 -DKDE_INSTALL_KNOTIFYRCDIR=/nix/store/8dh3qi359x01xdj1b4xp1mh6mq5swmkk-aerothemeplasma-notifications-2026-03-02/share/knotifications6 -DKDE_INSTALL_ICONDIR=/nix/store/8dh3qi359x01xdj1b4xp1mh6mq5swmkk-aerothemeplasma-notifications-2026-03-02/share/icons -DKDE_INSTALL_LOCALEDIR=/nix/store/8dh3qi359x01xdj1b4xp1mh6mq5swmkk-aerothemeplasma-notifications-2026-03-02/share/locale -DKDE_INSTALL_SOUNDDIR=/nix/store/8dh3qi359x01xdj1b4xp1mh6mq5swmkk-aerothemeplasma-notifications-2026-03-02/share/sounds -DKDE_INSTALL_TEMPLATEDIR=/nix/store/8dh3qi359x01xdj1b4xp1mh6mq5swmkk-aerothemeplasma-notifications-2026-03-02/share/templates -DKDE_INSTALL_WALLPAPERDIR=/nix/store/8dh3qi359x01xdj1b4xp1mh6mq5swmkk-aerothemeplasma-notifications-2026-03-02/share/wallpapers -DKDE_INSTALL_APPDIR=/nix/store/8dh3qi359x01xdj1b4xp1mh6mq5swmkk-aerothemeplasma-notifications-2026-03-02/share/applications -DKDE_INSTALL_DESKTOPDIR=/nix/store/8dh3qi359x01xdj1b4xp1mh6mq5swmkk-aerothemeplasma-notifications-2026-03-02/share/desktop-directories -DKDE_INSTALL_MIMEDIR=/nix/store/8dh3qi359x01xdj1b4xp1mh6mq5swmkk-aerothemeplasma-notifications-2026-03-02/share/mime/packages -DKDE_INSTALL_METAINFODIR=/nix/store/8dh3qi359x01xdj1b4xp1mh6mq5swmkk-aerothemeplasma-notifications-2026-03-02/share/metainfo -DKDE_INSTALL_QTQCHDIR=/nix/store/8dh3qi359x01xdj1b4xp1mh6mq5swmkk-aerothemeplasma-notifications-2026-03-02/share/doc/qch -DKDE_INSTALL_QCHDIR=/nix/store/8dh3qi359x01xdj1b4xp1mh6mq5swmkk-aerothemeplasma-notifications-2026-03-02/share/doc/qch -DKDE_INSTALL_MANDIR=/nix/store/8dh3qi359x01xdj1b4xp1mh6mq5swmkk-aerothemeplasma-notifications-2026-03-02/share/man -DKDE_INSTALL_INFODIR=/nix/store/8dh3qi359x01xdj1b4xp1mh6mq5swmkk-aerothemeplasma-notifications-2026-03-02/share/info -DKDE_INSTALL_DBUSDIR=/nix/store/8dh3qi359x01xdj1b4xp1mh6mq5swmkk-aerothemeplasma-notifications-2026-03-02/share/dbus-1 -DKDE_INSTALL_DBUSINTERFACEDIR=/nix/store/8dh3qi359x01xdj1b4xp1mh6mq5swmkk-aerothemeplasma-notifications-2026-03-02/share/dbus-1/interfaces -DKDE_INSTALL_DBUSSERVICEDIR=/nix/store/8dh3qi359x01xdj1b4xp1mh6mq5swmkk-aerothemeplasma-notifications-2026-03-02/share/dbus-1/services -DKDE_INSTALL_DBUSSYSTEMSERVICEDIR=/nix/store/8dh3qi359x01xdj1b4xp1mh6mq5swmkk-aerothemeplasma-notifications-2026-03-02/share/dbus-1/system-services -DKDE_INSTALL_SYSCONFDIR=/nix/store/8dh3qi359x01xdj1b4xp1mh6mq5swmkk-aerothemeplasma-notifications-2026-03-02/etc -DKDE_INSTALL_CONFDIR=/nix/store/8dh3qi359x01xdj1b4xp1mh6mq5swmkk-aerothemeplasma-notifications-2026-03-02/etc/xdg -DKDE_INSTALL_AUTOSTARTDIR=/nix/store/8dh3qi359x01xdj1b4xp1mh6mq5swmkk-aerothemeplasma-notifications-2026-03-02/etc/xdg/autostart -DKDE_INSTALL_LOGGINGCATEGORIESDIR=/nix/store/8dh3qi359x01xdj1b4xp1mh6mq5swmkk-aerothemeplasma-notifications-2026-03-02/share/qlogging-categories6 -DKDE_INSTALL_SYSTEMDUNITDIR=/nix/store/8dh3qi359x01xdj1b4xp1mh6mq5swmkk-aerothemeplasma-notifications-2026-03-02/lib/systemd -DKDE_INSTALL_SYSTEMDUSERUNITDIR=/nix/store/8dh3qi359x01xdj1b4xp1mh6mq5swmkk-aerothemeplasma-notifications-2026-03-02/share/systemd/user
+-- The C compiler identification is GNU 15.2.0
+-- The CXX compiler identification is GNU 15.2.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /nix/store/hb2bs5fg5wkm04x565737qd5nh2hy5nk-gcc-wrapper-15.2.0/bin/gcc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /nix/store/hb2bs5fg5wkm04x565737qd5nh2hy5nk-gcc-wrapper-15.2.0/bin/g++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+[0mInstalling in /nix/store/8dh3qi359x01xdj1b4xp1mh6mq5swmkk-aerothemeplasma-notifications-2026-03-02. Run /build/source/plasma/plasmoids/src/notifications_src/build/prefix.sh to set the environment for io.gitgud.wackyideas.notifications.[0m
+-- Looking for __GLIBC__
+-- Looking for __GLIBC__ - found
+-- Performing Test _OFFT_IS_64BIT
+-- Performing Test _OFFT_IS_64BIT - Success
+-- Performing Test HAVE_DATE_TIME
+-- Performing Test HAVE_DATE_TIME - Success
+-- Performing Test HAVE_STDATOMIC
+-- Performing Test HAVE_STDATOMIC - Success
+-- Found WrapAtomic: TRUE
+-- Found OpenGL: /nix/store/1fy4004v7q0xi6c5jrr7ld2dinh22vy7-libglvnd-1.7.0/lib/libOpenGL.so
+-- Found WrapOpenGL: TRUE
+-- Found WrapVulkanHeaders: /nix/store/axr5s1q5jmjsw3f2754xdm6q6rmyy12w-vulkan-headers-1.4.341.0/include
+-- Found X11: /nix/store/b9zdgj30zp1lwqd0bz0nrqwnalxh234q-xorgproto-2025.1/include
+-- Looking for XOpenDisplay in /nix/store/qi7spcan9lv78ag41bsmjrrhqrw496kq-libx11-1.8.13/lib/libX11.so;/nix/store/k6jinrpyk622lcnj2k55yd7qn07vff3a-libxext-1.3.7/lib/libXext.so
+-- Looking for XOpenDisplay in /nix/store/qi7spcan9lv78ag41bsmjrrhqrw496kq-libx11-1.8.13/lib/libX11.so;/nix/store/k6jinrpyk622lcnj2k55yd7qn07vff3a-libxext-1.3.7/lib/libXext.so - found
+-- Looking for gethostbyname
+-- Looking for gethostbyname - found
+-- Looking for connect
+-- Looking for connect - found
+-- Looking for remove
+-- Looking for remove - found
+-- Looking for shmat
+-- Looking for shmat - found
+-- Found Wayland_Client: /nix/store/indd6wy8j1j62njhdq6m37rkajpvzc3v-wayland-1.24.0/lib/libwayland-client.so (found version "1.24.0")
+-- Found Wayland_Server: /nix/store/indd6wy8j1j62njhdq6m37rkajpvzc3v-wayland-1.24.0/lib/libwayland-server.so (found version "1.24.0")
+-- Found Wayland_Cursor: /nix/store/indd6wy8j1j62njhdq6m37rkajpvzc3v-wayland-1.24.0/lib/libwayland-cursor.so (found version "1.24.0")
+-- Found Wayland_Egl: /nix/store/indd6wy8j1j62njhdq6m37rkajpvzc3v-wayland-1.24.0/lib/libwayland-egl.so (found version "18.1.0")
+-- Found Wayland: /nix/store/indd6wy8j1j62njhdq6m37rkajpvzc3v-wayland-1.24.0/lib/libwayland-client.so;/nix/store/indd6wy8j1j62njhdq6m37rkajpvzc3v-wayland-1.24.0/lib/libwayland-server.so;/nix/store/indd6wy8j1j62njhdq6m37rkajpvzc3v-wayland-1.24.0/lib/libwayland-cursor.so;/nix/store/indd6wy8j1j62njhdq6m37rkajpvzc3v-wayland-1.24.0/lib/libwayland-egl.so (found version "1.24.0")
+-- Found WaylandScanner: /nix/store/pbhp0i7vm9257lav5sl6ibjzf7125ffp-wayland-scanner-1.24.0-bin/bin/wayland-scanner
+-- Found Wayland: /nix/store/indd6wy8j1j62njhdq6m37rkajpvzc3v-wayland-1.24.0/lib/libwayland-client.so;/nix/store/indd6wy8j1j62njhdq6m37rkajpvzc3v-wayland-1.24.0/lib/libwayland-server.so;/nix/store/indd6wy8j1j62njhdq6m37rkajpvzc3v-wayland-1.24.0/lib/libwayland-cursor.so;/nix/store/indd6wy8j1j62njhdq6m37rkajpvzc3v-wayland-1.24.0/lib/libwayland-egl.so (found version "1.24.0") found components: Client
+-- Found Gettext: /nix/store/kfci1gnn12ip5xy492m0hd10hmgyxr6x-gettext-0.26/bin/msgmerge (found version "0.26")
+-- Found KF6I18n: /nix/store/11zxdkshjn9r8n8yadkirkfcp35br47k-ki18n-6.25.0-dev/lib/cmake/KF6I18n/KF6I18nConfig.cmake (found version "6.25.0")
+-- Found KF6Notifications: /nix/store/4q3q71lg6nkzi1ml4ky5pnjvakzn40v1-knotifications-6.25.0-dev/lib/cmake/KF6Notifications/KF6NotificationsConfig.cmake (found version "6.25.0")
+-- Could NOT find KF6NotifyConfig (missing: KF6NotifyConfig_DIR)
+-- Could NOT find KF6NotifyConfig: found neither KF6NotifyConfigConfig.cmake nor kf6notifyconfig-config.cmake 
+-- Found KF6GlobalAccel: /nix/store/kk6hag403xg5idzivq0l47jccrx4kyp8-kglobalaccel-6.25.0-dev/lib/cmake/KF6GlobalAccel/KF6GlobalAccelConfig.cmake (found version "6.25.0")
+-- Found KF6KIO: /nix/store/aj0yviyvkrsbbbmkfcm86sawghady5az-kio-6.25.0-dev/lib/cmake/KF6KIO/KF6KIOConfig.cmake (found version "6.25.0")
+[31mCMake Error at /nix/store/q800b7nrqa8csf2gcds2i83w1icsda5w-cmake-4.1.2/share/cmake-4.1/Modules/FindPackageHandleStandardArgs.cmake:227 (message):
+  Could NOT find KF6 (missing: NotifyConfig) (found version "6.25.0")
+
+      Reason given by package: Missing the following required components: NotifyConfig
+
+Call Stack (most recent call first):
+  /nix/store/q800b7nrqa8csf2gcds2i83w1icsda5w-cmake-4.1.2/share/cmake-4.1/Modules/FindPackageHandleStandardArgs.cmake:591 (_FPHSA_FAILURE_MESSAGE)
+  /nix/store/ln4hc3nz3gjhc8c4kw8xg2rq1l7nxgbv-extra-cmake-modules-6.25.0/share/ECM/find-modules/FindKF6.cmake:100 (find_package_handle_standard_args)
+  CMakeLists.txt:39 (find_package)
+
+[0m
+-- Configuring incomplete, errors occurred!
