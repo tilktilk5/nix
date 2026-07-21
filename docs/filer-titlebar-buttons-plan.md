@@ -180,6 +180,62 @@ restart (or heal on their next focus change) to fully re-sync.
 Still open: surfer polish (tab-close reloads later tabs via the Repeater
 rebuild; no default-browser registration yet).
 
+**Night-6: surfer browser overhaul — titlebar-native chrome (plugin 2.28,
+deployed, loads at next login; surfer runs live source so its half is already
+live):**
+
+The whole browser chrome moved into the titlebar. Two new plugin capabilities
+back it, both added to the app-button IPC (see `vtbIpc.hpp` for the wire doc):
+
+- **Editable title = address bar (in-plugin text editor).** An app opts its
+  title region in with `TITLEEDIT 1`. Clicking the stacked title (outer column,
+  below the system cells) enters an in-bar editor: `CVtbDeco` grabs the keyboard
+  via a new `input.keyboard.key` bus listener (`onKeyboardKey`) — cancellable, so
+  `info.cancelled` swallows the key before keybinds AND the focused client —
+  translates keycodes with `xkb_state_key_get_one_sym/utf8` (xkb keycode =
+  libinput `+ 8`) off `g_pSeatManager->m_keyboard`'s `m_xkbState`, and edits an
+  internal UTF-8 buffer with a caret drawn between the vertical codepoint rows.
+  Enter submits (`ADDR <text>` back to the client), Esc cancels. Click-to-edit
+  selects the whole field (browser style); the first keystroke replaces it.
+  Ctrl/Alt/Super combos pass straight through so compositor shortcuts still work.
+  The grab is gated hard on `PWINDOW == focusState()->window()` (both in
+  `onKeyboardKey` and `renderPass`) so it can NEVER eat keystrokes meant for
+  another window. surfer sets `win.title` to the live URL, so the bar shows the
+  address and the editor seeds from it. Known v1 limits: no key-repeat (the grab
+  swallows the press so the client's repeat never starts), no paste (reading the
+  Wayland clipboard from the compositor is async/involved), long URLs anchor at
+  the start with the caret clamped to the visible run.
+- **Tabs as draggable app-buttons.** App-button clicks now fire on RELEASE (was
+  press) so a press+drag can reorder instead: a `drag` 5th REGISTER field marks a
+  button reorderable; dragging it past a threshold tracks the nearest draggable
+  slot and, on drop, sends `REORDER <srcId> <dstId>`; a release without a drag is
+  the normal click. `-` separators now render as a thin divider line (not just a
+  gap). This applies to every client, but only surfer marks buttons draggable.
+- **WAKE.** Rolling a window back down un-hides its surface (`setHidden(false)`),
+  and QtWebEngine presents black until it redraws — so `toggleRollup`'s unroll
+  path sends `WAKE` to the owning client. (Not sent on un-minimize: minimize
+  slides the window off-screen rather than hiding the surface.)
+
+surfer side (`surfer/main.py` + `surfer/qml/Main.qml`, live source — no rebuild):
+
+- Removed the in-window header + tab strip entirely; the window is pure page.
+- Chrome registered in the inner column: `back / fwd / reload / copyurl`, a `-`
+  separator, one draggable `tab:<tid>` button per tab (2-letter label from the
+  page title, lit when active), then `+t` new-tab at the bottom. Clicking the
+  ACTIVE tab again closes it; dragging reorders (`onReordered` → `tabs.move`).
+  Tabs carry a stable `tid` so button ids and the active pointer survive
+  reorder/close.
+- `Titlebar` bridge gained `reordered`/`addrSubmitted`/`wake` signals (queued off
+  the VtbClient I/O thread) and `setTitleEdit`. `onAddrSubmitted` navigates the
+  current tab; `onWake` pulses `win.nudging` (hide+show the live view for 32ms)
+  to kick QtWebEngine out of its black state.
+- **Session persistence:** a `Session` QObject saves open tab URLs + the active
+  index to `$XDG_STATE_HOME/surfer/session.json` on close and restores them on
+  launch (unless a URL arg is passed).
+
+vtbclient.py mirrors all of it: the `drag` 5th field, `set_title_edit`, and
+`on_reorder`/`on_addr`/`on_wake` callbacks (resent on reconnect).
+
 The original design notes below are kept for reference.
 
 ## Why this exists
