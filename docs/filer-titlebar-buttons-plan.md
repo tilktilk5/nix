@@ -1,9 +1,186 @@
 # Plan: per-app titlebar-hosted buttons (hyprvtb), starting with filer
 
 **Date:** 2026-07-20
-**Status:** design proposed, NOT started (no hyprvtb code written yet). Handed off
-mid-session — the rest of this doc is the context a fresh agent needs to pick it
-up cold, not just the plan itself.
+**Status:** IMPLEMENTED (same day, follow-up session). What shipped, where:
+
+- **hyprvtb double-wide bar + socket** — every window's bar is now two columns
+  wide: inner column = app-registered buttons (empty if none), outer column =
+  the five system cells + stacked title. `vtbIpc.{hpp,cpp}` is the socket
+  server (`$XDG_RUNTIME_DIR/hyprvtb-buttons.sock`, REGISTER/FOOTER in,
+  CLICK out, keyed by PID, dedicated I/O thread — doLater/doOnReadable were
+  checked against the 0.55.4 source and are NOT thread-safe, hence the thread
+  + atomic-serial + damage-from-main-thread-hooks design). Buttons carry
+  per-entry state (normal / lit / disabled), `-` entries are spacers, FOOTER
+  draws stacked text at the inner column's bottom.
+- **Python client** — `~/nix/pylib/vtbclient.py` (reconnecting daemon thread,
+  used by filer, surfer, and kitty's helper).
+- **filer** — right strip deleted from `filer/qml/Main.qml`; buttons register
+  via the `Titlebar` bridge in `filer/main.py` (labels/states re-push on any
+  view-state change; dir size rides FOOTER). NB: button ids must not contain
+  ':' (protocol separator — bit us once with "sort:name").
+- **tooltips** — implemented compositor-side after all (plugin 2.23): hover a
+  cell ~450ms and a themed label pops out left of the bar; system cells have
+  fixed strings, app buttons pass theirs as the optional 4th REGISTER field.
+  No timers: the dwell check rides the mouse-move hook, so a perfectly
+  motionless cursor shows the tip on its next 1px twitch. The old QML tooltip
+  un-slide bug died with the strip.
+- **kitty** — `~/nix/pylib/kitty-vtb.py`, launched per-instance by
+  `startup_session vtb.session` (kitty.conf), maps titlebar buttons to
+  `kitten @ --to $KITTY_LISTEN_ON`: vsplit/hsplit (forces `splits` layout),
+  zoom (toggle stack), close split, copy/paste, new/next tab, scrollback.
+- **surfer** — NEW browser at `~/nix/surfer` (PySide6 + QtWebEngine = open
+  Chromium; the Vivaldi keybind-replay idea was dropped in favour of this).
+  Tabs, themed address bar, persistent profile; back/fwd/reload/tab/copy-url
+  buttons live in the titlebar. Packaged by `home/prog/surfer.nix` (same
+  air/system-python split as filer.nix). Verified rendering on air.
+
+**Night-2 fixes (plugin 2.24, deployed, loads at next login):**
+
+- **Tooltips/stale-label root cause**: damage was driven only by mouse-move
+  events, so a motionless cursor never saw the tooltip dwell fire and a
+  clicked sort button's `↑/↓` label stayed stale until the pointer moved.
+  Fixed with a 150ms main-thread `CEventLoopTimer` heartbeat (same re-arm
+  pattern as Hyprland's ANRManager; removed in PLUGIN_EXIT before dlclose) —
+  it damages bars whose registration serial moved and pops tooltips after
+  their 450ms dwell. This also covers spontaneous app updates (surfer's
+  reload→stop label while loading finishes with no input).
+- Lit app cells now grey to the inactive tone on unfocused windows, matching
+  the old strip's `win.fgAccent`.
+- **kitty gotcha**: a compositor-spawned kitty (minimal env) does NOT inject
+  `KITTY_LISTEN_ON` into startup-session background children — reproduced
+  with `env -i ... kitty --detach`. That's why login kitties had no buttons
+  while shell-launched ones did. `pylib/kitty-vtb.py` now falls back to the
+  parent PID's socket, waits for the socket file, and logs to
+  `~/.local/state/vtb/kitty-vtb.log`.
+- **hyprctl plugin unload/load under the lua config** — re-examined against the
+  0.55.4 source (`plugins/PluginSystem.cpp`, `config/lua/ConfigManager.cpp`).
+  `unloadPlugin` runs PLUGIN_EXIT + dlclose, then schedules `Config reload`;
+  the reload re-runs hyprland.lua's `hl.plugin.load(<symlink>)`, and
+  `updateConfigPlugins` re-loads any config plugin not currently loaded. So a
+  bare `hyprctl plugin unload <symlink>` DOES trigger an automatic re-load from
+  the symlink. The earlier "same version stays" was because the symlink still
+  resolved to the same store path at that moment (dlopen returns the cached
+  image for an identical path). Now that home-manager repoints the symlink to a
+  genuinely new store path on each build, `dlopen(<symlink>)` maps the new file
+  → the reload picks up the new version. Caveat: unload→dlclose→reload only
+  stays up if PLUGIN_EXIT tears everything down cleanly (IPC thread joined,
+  timer removed, decorations + render-stage hooks removed) — a botched teardown
+  crashes the whole compositor, so it's riskier than a logout even though it
+  should work. `p->m_path` is stored verbatim (no realpath), so unload must be
+  called with the SAME symlink path the lua used, not the resolved store path.
+
+**Night-3 fixes (plugin 2.25, deployed, loads at next login):**
+
+- **Tooltips never actually appeared — real root cause found.** The 2.24
+  timer heartbeat was firing fine (verified against the 0.55.4 source:
+  `onTimerFire` only calls a timer with `strongRef() > 2`, and we hold the
+  3rd ref via `g_pGlobalState->tick`; `updateTimeout` from inside the cb
+  re-arms via `scheduleRecalc`). The bug was the render LAYER: the bar is a
+  `DECORATION_LAYER_UNDER` decoration, which Hyprland draws *before* the
+  window surface (`Renderer.cpp` ~657 UNDER, then the window surface). The
+  bar itself is safe — it sits in reserved space to the window's right — but
+  the tooltip pops out LEFT, over the window's own area, so the opaque window
+  surface painted straight over it. It was never visible, on any app.
+  Fix: the tooltip is now its own pass element enqueued at
+  `RENDER_POST_WINDOWS` (over windows, under top/overlay layers) via
+  `enqueueTooltip`/`drawTooltipPass`; `mainThreadTick` pre-sizes
+  `m_tooltipBox` so the element's boundingBox already claims the strip on the
+  first frame (else `simplify()` treats it as window-occluded and discards).
+  System cells + all three apps (filer/kitty/surfer) get tooltips now.
+- **kitty vertical-split `|` label was blank.** The old `_clean()` replaced
+  `:` and `|` (the wire separators) with a space, so a `|`/`:` glyph label
+  was destroyed in transit. Replaced with percent-encoding in
+  `pylib/vtbclient.py` (`%3A`/`%7C`/`%0A`, `%` escaped first; non-ASCII glyphs
+  like `↑ » …` pass through) and a matching `pctDecode` in the plugin's
+  `vtbIpc.cpp`. Labels/tooltips may now hold any character.
+
+**Also fixed (kitty theme colours on Meta+W):** `kitty-focus-dim.py` restored a
+focused terminal with `set-colors --reset`, which implies `--configured` and so
+rewrites kitty's *configured* defaults to the values they had at kitty STARTUP.
+After that, wal-set.sh's `SIGUSR1` live reload can no longer change kitty's
+colours, so a theme switch left the text stuck on the launch-time palette
+(confirmed: a kitty whose startup fg was `#cc060c` ignored a reload to
+`#b7b7cc`). Fixed by restoring focus with an explicit `foreground=<accent>` read
+live from `theme.conf` (a plain, non-configured override that a reload correctly
+supersedes — verified reload beats a non-`--configured` override). Takes effect
+for kitties opened after the next login; already-pinned running kitties need a
+restart (or heal on their next focus change) to fully re-sync.
+
+**Night-4 fixes (plugin 2.26, deployed, loads at next login):**
+
+- **Tooltips slide in/out.** Tooltips were static pop-ins; now they slide in
+  from the left with a fade (OutCubic, 220ms — matching quickshell's
+  `SlidePopup` card slide) and retract the same way. `renderTooltip` advances a
+  time-based phase itself and re-damages until it settles, so it animates even
+  on a motionless cursor; `m_ttWantShown`/`m_ttPhase`/`m_ttCell` hold the state,
+  `hideTooltip()` now *requests* a retract (teardown happens when the phase hits
+  0). Slides from the left (never reaches the bar) so no clipping is needed —
+  `renderRect`/`renderTexture` reset scissor to their own damage internally, so
+  a pre-set clip box would be ignored anyway.
+- **Inner-column spacers removed (all apps).** Dropped the `"-"` group spacers
+  from filer (`filer/qml/Main.qml`), kitty (`pylib/kitty-vtb.py`), and surfer
+  (`surfer/qml/Main.qml`) — the columns read cleaner as one uniform grid.
+- **Equal column/row spacing.** The two button columns are now laid out as ONE
+  grid centered in the double-wide bar, with the inter-COLUMN gap equal to the
+  inter-ROW gap (`VTB_CELL_GAP`) and matching side margins. New helpers in
+  `vtbDeco.cpp` (`gridLeftMargin`/`innerColX`/`sysColX`/`titleTexX`/
+  `footerTexX`) are the single source of truth for both drawing and hit-testing
+  (replaced the old `VTB_PAD` / `colW()+VTB_PAD` column offsets everywhere).
+
+**Quickshell (hot-reloaded live, no login needed):**
+
+- **Widgets fan out at login.** `shell.qml`'s `applyWidgetState` used to pin the
+  saved set instantly; it now fans them OUT (the same staged cascade the reveal
+  button uses) on a genuine login, and snaps them on instantly for hot reloads
+  (a `$XDG_RUNTIME_DIR/qs-fanned` marker — wiped on logout — distinguishes the
+  two, so wallpaper-change reloads don't replay the ~1.2s fan). The set is the
+  saved pins (`~/.local/state/quickshell/widgets`, written by Meta+Ctrl+S), and
+  falls back to a declarative `_defaultWidgets` persist-key list for first boot
+  — a one-line edit to change, and host-specific defaults can be added there
+  later without touching the fan logic. Current saved set: `clock weather disk
+  cpu eth` (captured from the live session via `qs ipc call widgets save`).
+- **Battery charging indicator.** `StatusPanel.qml`'s battery module now flips
+  its label `bat` → `chg` while charging (on top of the existing green value
+  colour, which alone was easy to miss near full charge).
+
+**Night-5 fixes (plugin 2.27, deployed, loads at next login):**
+
+- **Tooltip now slides OUT of the bar, not in from nowhere.** Reversed the slide
+  direction in `renderTooltip`: the label starts fully tucked behind the bar
+  (shoved `W + gap` right) and slides left out of the bar's edge, like the
+  quickshell widgets emerge from the screen edge. The un-emerged part is clipped
+  to the bar's left edge — `renderRect`/`renderTexture` reset the GL scissor to
+  their own damage internally, so the clip is passed as a `damage` region via
+  `SRectRenderData`/`STextureRenderData` (both have a `const CRegion* damage`
+  field) rather than a manual scissor. Dropped the fade (a pure slide, like the
+  widgets).
+- **Click-activation flash on every titlebar button.** A pressed cell (system or
+  app, and on the shaded floating bar) inverts for `VTB_FLASH_MS` (220ms) — the
+  cell fills solid with its highlight colour and the glyph is drawn in the bar
+  background — then reverts. Driven by `m_flashCell`/`m_flashAt` + `flashCell()`,
+  set from `handleDownEvent`/`handleRolledDown`; `renderPass` self-damages while
+  the flash plays. close/minimize also close/hide the window so their flash just
+  isn't seen — everything else (maximize/pin/rollup/sort/copy/…) confirms.
+
+**Hyprland single-workspace fix (`hypr-files/hyprland.lua` + the live
+`~/.config/hypr/hyprland.lua`, takes effect next login):**
+
+- Removed the startup `hyprctl dispatch focus workspace 50`. The hyprvtb plugin
+  relaunches the saved session during config load (`hl.plugin.load`), and those
+  windows map onto the default workspace 1 — but the async `focus workspace 50`
+  raced that mapping, so windows that mapped before the switch stayed on 1 and
+  ones after landed on 50. Result: a fresh login scattered programs across two
+  workspaces, some only reachable via their taskbar icon. The desktop is locked
+  to a single workspace (all workspace binds/gestures already removed), so the
+  anchor-at-50 leftover from the abandoned scroll-to-create scheme just had to
+  go. NB `hyprland.lua` is seeded once (wal-set.sh rewrites its colours in
+  place), so `home-manager switch` does NOT redeploy it — the live copy was
+  edited directly to match the repo.
+
+Still open: surfer polish (tab-close reloads later tabs via the Repeater
+rebuild; no default-browser registration yet).
+
+The original design notes below are kept for reference.
 
 ## Why this exists
 
