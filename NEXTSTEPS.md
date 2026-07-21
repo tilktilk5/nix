@@ -1,164 +1,197 @@
-# NEXTSTEPS — Share this config across desktop (`top`) + MacBook Air (`air`), with git auto-sync
+# NEXTSTEPS — sharing this config between `top` and the MacBook Air (`air`)
 
-> Status: **planned, not yet implemented.** Nothing in here has been applied. `top` is
-> untouched. Each phase is written so `top` never breaks; verify after every phase.
+> Status: **fully working on air** (this machine, OS hostname `book`, Fedora Asahi
+> Remix, aarch64) as of 2026-07-20. `home-manager switch -b backup --flake
+> /home/lam/Downloads/git/nix#air` has run successfully. `top` untouched.
+> `hyprvtb` titlebars load, scale is `1.67`, and a battery module is in the panel.
+> See "Facts worth keeping" below for a dead end worth not repeating (running
+> nixpkgs' own Hyprland as air's compositor) before touching `hyprvtb`/scale again.
 
-## Context / goal
+## Decision (superseding the earlier NixOS-on-Asahi plan)
 
-The Hyprland/Quickshell rice here originally came from a Fedora Asahi MacBook Air and was
-migrated into this flake. Goal: run **both machines from this one repo**
-(`github.com/tilktilk5/nix`, branch `main`) so a push from either machine — by me or an
-agent — automatically reflects on the other.
+An earlier version of this doc planned full **NixOS-on-Asahi** for the MBA via the
+`nixos-apple-silicon`/`apple-silicon-support` flake. That's been dropped: Fedora Asahi
+Remix has meaningfully better Apple Silicon hardware/GPU support than the community
+NixOS Asahi port, and installing NixOS as the OS would have required a USB installer
+(which triggered this whole reconsideration — no USB-C→A adapter was on hand).
 
-Decisions made:
-- **MBA OS = NixOS on Asahi** (aarch64) via the `apple-silicon-support` flake → full
-  multi-host flake, not just home/dotfile sharing.
-- **Auto-sync = pull + auto-rebuild** on a timer; pushes stay manual; local uncommitted
-  edits are auto-stashed so nothing in-progress is clobbered.
-- **Do the desktop side first.** The MBA isn't installed yet, so everything below is built
-  and tested on `top`. The actual Asahi install + generating the MBA's real
-  `hardware-configuration.nix` is a follow-up done on the laptop.
+Instead: **keep Fedora, add the Nix package manager + a standalone `home-manager`
+config on top.** No OS reinstall, no bootloader/ISO risk, no `hosts/air/` — `sys/*`
+stays NixOS-only and simply doesn't apply to `air`.
 
-### Current-state facts that shape the plan
-- `flake.nix` is single-host: `system` hardcoded to `x86_64-linux`, one global `pkgs`.
-- `sys/default.nix`'s `umport` auto-imports **every** `.nix` under `sys/` → `sys/hw/nvidia.nix`,
-  `sys/gme/steam.nix`, and the bootloader/kernel/CUDA-substituter parts of `sys/base.nix`
-  currently apply to *any* host. These must become per-host.
-- Reusable pattern: `my.aerotheme.enable` (in `sys/options.nix`) consumed with `lib.mkIf`
-  in `sys/dsk/plasma.nix` — the same mechanism guards hardware modules per host.
-- **Rice delivery asymmetry (important):** `home/prog/hyprland.nix` seeds `hyprland.lua`
-  as a **writable copy, only if absent** (`install … || true` in
-  `home.activation.seedHyprMutableFiles`); `home/prog/quickshell.nix` seeds `Theme.qml` the
-  same way but ships all other `*.qml` as **read-only store symlinks**. So editing the shared
-  `hyprland.lua` *template* does NOT touch `top`'s already-seeded live file (its scale stays
-  `1`), while `SysInfo.qml`/`Osd.qml` edits propagate to both hosts. This is why scale uses a
-  generated per-host param and brightness uses runtime detection.
-- Laptop-hostile bits are localized: `scale = "1"` (Retina wants ~2), brightness via
-  `ddcutil` (external monitor) instead of a real backlight, `no_hardware_cursors` (NVIDIA,
-  harmless elsewhere). Wallpaper scripts already query `hyprctl monitors -j` dynamically.
+## What changed in the repo
 
----
+- `flake.nix`: overlay list deduplicated into a `mkPkgs` helper; `host = "top"` is
+  threaded into `nixosConfigurations.top`'s `specialArgs`/home-manager
+  `extraSpecialArgs`; a new `homeConfigurations.air` output
+  (`home-manager.lib.homeManagerConfiguration`, `aarch64-linux`, same overlays,
+  `host = "air"`) reuses `./lam.nix` unchanged. No dual-wiring risk — that footgun
+  (documented in `flake.nix`) was about `top` having two home-manager entry points
+  for the *same* machine; `air` has no NixOS layer to collide with.
+- `home/prog/zsh.nix`: `update`/`rbsys`/`rbhome`/`trash` branch on `host` —
+  `nixos-rebuild switch --flake ...#top` on top, `home-manager switch --flake
+  ...#air` on air (no passwordless-sudo rule exists there, so `trash` drops `sudo`).
+- Screen scale (Retina wants ~2, top's external monitor is 1): `home/prog/hypr-host.nix`
+  (new) renders a read-only `~/.config/hypr/host.lua` from `host`;
+  `home/prog/hypr-files/hyprland.lua`'s monitor block `dofile`s it with a `scale or
+  "1"` fallback. `home/plasma.nix`'s `kwinrc.Xwayland.Scale` branches the same way
+  for Xwayland/KDE app scaling.
+- Brightness: `home/prog/quickshell-files/SysInfo.qml` now detects a real panel
+  backlight at startup (`ls /sys/class/backlight/*/brightness`) and uses
+  `brightnessctl` when present, falling back to the existing `ddcutil` (external
+  monitor DDC/CI) path verbatim otherwise. `Osd.qml` needed no change — it already
+  just reads `SysInfo.brightness` rather than querying hardware itself.
+- x86_64-only packages gated with `lib.optionals pkgs.stdenv.hostPlatform.isx86_64`
+  (not `host ==`, since the real constraint is architecture): `vcv-rack`, `pcsx2`,
+  `vintagestory` (`home/pkgs/desktop/misc.nix`); `google-chrome`
+  (`home/pkgs/desktop/net.nix`); `wineWow64Packages.staging`
+  (`home/pkgs/desktop/utils.nix`); `spotify` (`home/pkgs/media/consume.nix`);
+  `dwarf-fortress-packages.*` (`home/pkgs/game.nix`, whole `home.packages` list
+  guarded so the attribute path itself is never forced on aarch64, since it may not
+  exist there at all).
+- `hyprvtb` on air (see "Facts worth keeping" below for the fix and why a plugin
+  ABI mismatch happens at all): `home/prog/hyprvtb.nix` builds it against a
+  `pkgs.extend`-overridden hyprland with `GIT_*` env forced to `"unknown"` for
+  `host == "air"` only; `top` untouched.
+- Battery module: `home/prog/quickshell-files/scripts/sysinfo.sh` now emits
+  `batteryPct|batteryCharging` by scanning `/sys/class/power_supply/BAT*`
+  (`-1|0` when absent); `SysInfo.qml` parses it into `batteryPct`/
+  `batteryCharging`; `StatusPanel.qml` shows a `bat` stat colored by charging/low
+  state. No `host` check anywhere — it's hardware-detected like brightness's
+  `useBacklight` above, so it just doesn't appear on `top` (no `BAT*` node there).
 
-## Phase 1 — Options scaffold (`sys/options.nix`), no behavior change
-Add alongside `my.aerotheme.enable`:
-- `my.host.role` : enum `[ "desktop" "laptop" ]`, default `"desktop"`.
-- `my.hardware.nvidia.enable`, `my.hardware.appleSilicon.enable` : `mkEnableOption` (default false).
-- `my.gaming.enable` : `mkEnableOption`.
-- `my.rice.monitorScale` : str, default `"1"` (consumed by the home layer in Phase 5).
+## Facts worth keeping (carried over from the earlier version of this doc)
 
-Nothing consumes them yet; defaults keep every host behaving as today.
+- **Rice delivery asymmetry:** `home/prog/hyprland.nix` seeds `hyprland.lua` as a
+  writable copy *only if absent* (`install … || true` in
+  `home.activation.seedHyprMutableFiles`); `home/prog/quickshell.nix` seeds
+  `Theme.qml` the same way but ships all other `*.qml` as read-only store symlinks.
+  So editing the shared `hyprland.lua` *template* does not touch `top`'s
+  already-seeded live file — only a fresh seed (a first activation on `air`) picks
+  up the new `host.lua`-driven scale. `SysInfo.qml`/`Osd.qml` edits, being plain
+  store symlinks, propagate to both hosts immediately on switch.
+- `Theme.qml` (`barWidth=48`, pixel fonts) needed no scale-specific change:
+  QtWayland layer-shell surfaces honor the compositor's `wl_output` scale, so
+  Hyprland `scale=2` auto-scales the panel. Worth visually confirming on `air`
+  once it's live; add a per-host `barWidth` only if that proves wrong.
+- `no_hardware_cursors` / trackball / touchpad blocks are harmless no-ops on the MBA.
 
-## Phase 2 — Guard machine-specific modules with `lib.mkIf` (keep umport)
-Files stay in the tree; they become no-ops when their toggle is off.
-- `sys/hw/nvidia.nix` → wrap whole body in `lib.mkIf config.my.hardware.nvidia.enable`.
-- `sys/gme/steam.nix` → wrap in `lib.mkIf config.my.gaming.enable`.
-- `sys/base.nix` → gate the CUDA/ai cachix `trusted-substituters`/`-public-keys` behind
-  `lib.mkIf (config.my.host.role == "desktop")`; demote `boot.kernelPackages` to
-  `lib.mkDefault pkgs.linuxPackages_latest` and `efi.canTouchEfiVariables` to
-  `lib.mkDefault true` so the Asahi host can override. Keep `nix`/`gc`/`time`/`i18n`/
-  `networkmanager`/`stateVersion` global.
-- `hosts/top/configuration.nix` → add explicit opt-ins (net-zero for `top`):
-  `my.host.role = "desktop"; my.hardware.nvidia.enable = true; my.gaming.enable = true;
-  my.rice.monitorScale = "1";`
+## What actually happened getting it activated (read before repeating steps)
 
-**Gate:** `nixos-rebuild build --flake .#top` toplevel drv identical to pre-change.
+Bring-up on air went through several rounds — worth knowing before touching this again:
 
-## Phase 3 — Multi-arch flake refactor + `air` output (`flake.nix`)
-- Add input `apple-silicon-support = { url = "github:tpwrules/nixos-apple-silicon";
-  inputs.nixpkgs.follows = "nixpkgs"; }`. (Fallback if a mesa/kernel bump breaks the build:
-  drop the `follows` so it uses its own tested nixpkgs.)
-- Replace single `system`/`pkgs` with `pkgsFor = system: overlays: import nixpkgs
-  { inherit system; config.allowUnfree = true; overlays; };` then
-  `pkgsTop = pkgsFor "x86_64-linux" [vcv-rack-overlay ollama-overlay]` and
-  `pkgsAir = pkgsFor "aarch64-linux" [vcv-rack-overlay]` (NO CUDA overlay on aarch64).
-- `nixosConfigurations.top`: unchanged except `inputs.tuxmanager.packages.${system}` →
-  `…packages."x86_64-linux"` (only forced line; behavior identical).
-- Add `nixosConfigurations.air` (aarch64): overlay module with `[vcv-rack-overlay]` only,
-  `apple-silicon-support.nixosModules.default`, `./hosts/air/configuration.nix`, home-manager
-  NixOS block (same shape as `top`, `useGlobalPkgs = true`) — **no** CUDA/ollama/tuxmanager/aerotheme.
-- `homeConfigurations`: keep `"lam"` (→ `pkgsTop`); add `"lam@air"` (→ `pkgsAir`) so standalone
-  `rbhome` works on the MBA and feeds `hyprvtb` aarch64 pkgs.
+- **Nix and dnf both need an interactive sudo password.** Neither can be run
+  non-interactively from an agent session; you have to run the install/dnf
+  commands yourself in a real terminal.
+- **Untracked new files are invisible to the flake.** Nix's git-aware flake source
+  only sees `git add`-ed content. `home/prog/hypr-host.nix` silently evaluated to
+  nothing (no error!) the first time because it was only `Write`d, never staged.
+  **Always `git add` a new file before evaluating/building the flake against it.**
+- **Disk is tight on this machine** (~62G root, was down to ~6-7G free mid-build).
+  Cleared regenerable caches (`~/.cache/{mozilla,qutebrowser,drkonqi,appstream,
+  falkon,mesa_shader_cache,discover}`) for headroom; `dnf clean all` /
+  `journalctl --vacuum-size` need sudo too and were left undone. Keep an eye on
+  `df -h /` during any future big rebuild here.
+- **Several packages compile from source on aarch64 with no cache hit** and got
+  gated off `air` for now (`host != "air"` / `host == "top"` in the relevant
+  `home/pkgs/*.nix` file) rather than waiting through the build: `gimp`,
+  `libreoffice-qt-fresh` (`desktop/utils.nix`), `fooyin` (`media/consume.nix`).
+  `discord` also needed adding to the existing x86_64-only gate in
+  `desktop/misc.nix` — it's not just unavailable via `lib.optionals isX86`, it was
+  still listed unconditionally and broke eval on aarch64.
+- **`breeze-square-overlay` forced a from-source KDE Frameworks rebuild** even
+  after removing `breeze` from `home/pkgs/desktop/kde.nix`'s package list, because
+  `plasma-manager` pulls `kdePackages.breeze` in transitively regardless of
+  `home.packages`. Fixed at the *overlay* level instead — `flake.nix`'s `pkgsAir`
+  now omits `breeze-square-overlay` entirely (`mkPkgs` takes an explicit overlay
+  list per call now). Net effect: air's Breeze has round corners for now, `top`
+  unaffected. Add the overlay back to `pkgsAir` if squared corners matter more
+  than avoiding that rebuild.
+- **A large chunk of `home/pkgs/*` overlaps what's already native on this Fedora
+  install** (this machine is literally where the rice originally came from, per
+  the top of this doc) — `hyprland` itself plus its ecosystem, `waybar`,
+  `quickshell`, `kitty`, `firefox`, `qutebrowser`, `mpv`, `yt-dlp`, `git`, `curl`,
+  and a long tail of small CLI tools. All gated `host != "air"` in their
+  respective files (`base.nix`, `desktop/wm.nix`, `dev.nix`, `desktop/net.nix`,
+  `media/aquire.nix`, `media/consume.nix`) rather than installed twice. If you add
+  a *new* package to a shared file later, sanity-check it against `rpm -qa` on air
+  before assuming it needs a fresh Nix build.
+- **Standalone `home-manager switch` needs `-b backup` on the CLI**, not a config
+  option — `backupFileExtension` only exists for the NixOS-module form (`top`).
+  Even with `-b backup`, it still hard-refused once: two stale systemd "enabled"
+  symlinks under `~/.config/systemd/user/default.target.wants/{wal-prepare,
+  wal-set}.path` (leftover from a native `systemctl --user enable` before Nix
+  managed them) aren't covered by the backup mechanism at all. Had to `rm` those
+  two by hand before the switch would proceed — safe, they're just enablement
+  markers, home-manager regenerates its own.
+- **The pre-existing live `~/.config/hypr/hyprland.lua` predated `hyprvtb` and
+  `quickshell` entirely** (old, never touched by the seed-once-if-absent logic).
+  It's now been replaced with the current template (backup at
+  `~/.config/hypr/hyprland.lua.preseed-backup`) so `host.lua`-driven scale and the
+  `hyprvtb` plugin-load line are actually present. Its old hardcoded scale was
+  `"1.67"`, not `"1"` or `"2"` — that's now `home/prog/hypr-host.nix`'s real value
+  for `air`, not a guess.
+- **A plain `hyprctl reload` is enough for most config changes** (monitor, binds,
+  plugin load attempts) without logging out. It does **not** re-run the
+  `hl.on("hyprland.start", ...)` autostart block (quickshell, hypridle, polkit
+  agent, wal-set.sh) — that only fires once per actual Hyprland process lifetime,
+  so those need a real logout/login (or Hyprland restart) to start for the first
+  time after adopting the new template.
 
-## Phase 4 — `hosts/air/` (evaluatable placeholder now; real HW config on MBA later)
-- `hosts/air/configuration.nix`: `imports = [ ./hardware-configuration.nix ../../sys ];`
-  `networking.hostName = "air"; my.host.role = "laptop";
-  my.hardware.appleSilicon.enable = true; my.rice.monitorScale = "2";`
-  `boot.loader.efi.canTouchEfiVariables = false;` + a `hardware.asahi` block
-  (`peripheralFirmwareDirectory` placeholder, `useExperimentalGPUDriver = true`,
-  `experimentalGPUInstallMode = "replace"`); pipewire/printing/rtkit; omit vmware/openrgb/CUDA.
-- `hosts/air/hardware-configuration.nix`: documented PLACEHOLDER with
-  `nixpkgs.hostPlatform = lib.mkDefault "aarch64-linux";` + a stub `fileSystems."/"` so `.#air`
-  *evaluates* on the desktop. Regenerated on the MBA via `nixos-generate-config`.
+## `hyprvtb` on air — root cause, fix, and a dead end not to repeat
 
-## Phase 5 — Per-host rice shim (minimal; `top` unchanged)
-- **Scale via generated param.** New `home/prog/hypr-host.nix` renders read-only
-  `~/.config/hypr/host.lua` = `return { scale = "<my.rice.monitorScale>", laptop = <bool> }`
-  from `osConfig.my.rice.*` (standalone fallback). One-line top-safe edit to the shared
-  `home/prog/hypr-files/hyprland.lua` monitor block: `dofile` `host.lua` with `scale or "1"`
-  fallback. `top`'s already-seeded `hyprland.lua` is untouched (stays scale 1); only a fresh
-  seed (the MBA) gets scale 2.
-- **Brightness via runtime detection.** Edit `home/prog/quickshell-files/SysInfo.qml` (mirror
-  in `Osd.qml`): probe `/sys/class/backlight` — non-empty → `brightnessctl` (drop the ~1.5s DDC
-  debounce); empty → keep existing `ddcutil setvcp/getvcp 10` path verbatim. `top` has no
-  backlight → ddcutil path → identical behavior.
-- `Theme.qml` (`barWidth=48`, pixel fonts) needs **no** change: QtWayland layer-shell surfaces
-  honor the compositor `wl_output` scale, so Hyprland `scale=2` auto-scales the panel. Verify
-  on the MBA; add a per-host `barWidth` only if it proves wrong.
-- Leave `no_hardware_cursors` / trackball / touchpad blocks (harmless / no-ops on the MBA).
+Root cause (confirmed, not a guess): `hyprctl plugin load` on air was failing with
+`plugin crashed/threw in main: [hyprvtb] Version mismatch`. Fedora's native
+Hyprland (`hyprland-0.55.4-5.fc44`) is built without git metadata —
+`hyprctl version` there reports commit `unknown`, giving ABI string
+`unknown_aq_0.12_hu_0.13_hg_0.5_hc_0.1_hlg_0.6`. nixpkgs' hyprland embeds the real
+upstream commit hash instead, so a plugin built the normal way always mismatches,
+regardless of build method (confirmed this isn't fixable via `hyprpm` either — the
+compositor's own self-reported hash is what's compared against, and Fedora's is
+always `unknown` no matter how the plugin was built).
 
-## Phase 6 — Auto-pull + auto-rebuild systemd unit (one shared unit, both hosts)
-New `sys/auto-sync.nix` (umport picks it up → both hosts). `oneshot` service + timer;
-`host = config.networking.hostName` baked in so the same unit rebuilds `.#top` on top and
-`.#air` on air. Script: fetch as user `lam` (`runuser -u lam`), compare `@` vs `origin/main`,
-if behind `git pull --rebase --autostash`, then `nixos-rebuild switch --flake <repo>#<host>`
-as root; `notify-send` (via `runuser`) on pull-conflict or build failure. Switch is atomic →
-a failed build stays on the current generation. Timer: `OnBootSec=5min`,
-`OnUnitActiveSec=30min`, `Persistent=true`, `RandomizedDelaySec=2min`. Auth: prefer the
-**public HTTPS** remote (no creds) else a read-only deploy key under `/home/lam/.ssh/`.
-No auto-push.
+**The fix** (`home/prog/hyprvtb.nix`, done and confirmed working): for
+`host == "air"`, build `hyprvtb` against a `pkgs.extend`-overridden `hyprland`
+whose `GIT_BRANCH`/`GIT_COMMIT_HASH`/`GIT_COMMIT_DATE`/`GIT_COMMIT_MESSAGE`/
+`GIT_TAG` env are all forced to `"unknown"`, matching Fedora's string exactly.
+`top` is untouched — it still uses the real hash, matching its own real
+nixpkgs-built Hyprland. This forces a full Hyprland compositor rebuild from
+source the first time (the version macros are baked into headers used
+throughout the codebase, not just a small plugin-facing header) — a one-time
+cost; once built it's cached like any other derivation and only rebuilds again
+on a nixpkgs bump that touches hyprland.
 
-Also edit `home/prog/zsh.nix` aliases: `rbsys`/`update` → `--flake /home/lam/nix/#$(hostname)`;
-keep `rbhome = …#lam` (use `#lam@air` on the MBA).
+**Dead end, don't repeat:** tried sidestepping the override entirely by making
+air run nixpkgs' own hyprland as the *actual* compositor instead of Fedora's rpm
+(`home/pkgs/desktop/wm.nix` + a `/usr/share/wayland-sessions/hyprland-nix.desktop`
+entry pointing at `start-hyprland --path ~/.nix-profile/bin/Hyprland`). It
+launched, but Hyprland itself crashed on startup (SIGABRT in
+`handleUnrecoverableSignal`). The crash report showed DRM/KMS enumeration
+succeeding fine against the Apple GPU (`driver apple`, `/dev/dri/card2`, `eDP-1`
+mode detection all fine) but then failing to create a GBM allocator:
+`Couldn't open a GBM device at fd 27` / `Cannot create a GBM Allocator: gbm
+failed to create a device.` — nixpkgs' Mesa doesn't have working Apple Silicon
+(Honeykrisp) GBM driver support the way Fedora Asahi's patched Mesa does. Not
+fixable without nixGL-style host-Mesa injection (not set up, and fragile even if
+it were — aquamarine/wlroots link against nix's own libdrm/pixman/etc, so mixing
+in host Mesa risks further ABI mismatches). Reverted both files back to the
+override-based fix above.
 
-## Phase 7 — Docs / consolidation
-Leave `~/nixos-migration` as read-only historical reference (its NOTES.md/CLAUDE.md guidance is
-already captured). Update `AGENTS.md`: two hosts, the new `my.host.role`/`my.hardware.*`/
-`my.gaming.*`/`my.rice.*` gates over umport, the `hosts/air/` placeholder workflow, the
-`host.lua` + runtime-backlight rice shim, and the `nix-autosync` timer.
+## Deferred (not in scope right now)
 
----
-
-## Verification (run from repo root after each phase)
-- **P1/P2:** `nix flake check`; `nixos-rebuild build --flake .#top` → toplevel drv identical to
-  a pre-change build (the "didn't break top" gate).
-- **P3:** `nix flake check`; rebuild `.#top`; `home-manager build --flake .#lam`.
-- **P4:** `nix eval .#nixosConfigurations.air.config.system.build.toplevel.drvPath` (cross-arch
-  eval); `nix build .#nixosConfigurations.air…toplevel --dry-run` shows it wants the Asahi
-  kernel/firmware + an aarch64 builder.
-- **P5:** rebuild `.#top`; confirm `~/.config/hypr/hyprland.lua` unchanged (seed skip) and
-  `host.lua` renders `scale="1"`; confirm `top` brightness still uses ddcutil.
-- **P6:** rebuild `.#top`; `systemctl status nix-autosync.timer`; `systemctl start
-  nix-autosync.service` once → journal says "up to date" when in sync; `rbsys` expands to `#top`.
-
-**Requires the MBA (follow-up, not doable from the desktop):** installing NixOS-on-Asahi,
-extracting peripheral firmware from macOS, generating the real
-`hosts/air/hardware-configuration.nix`, first `nixos-rebuild switch --flake .#air`,
-GPU/mesa-asahi bring-up, and visually confirming `scale=2` + brightnessctl backlight + panel
-auto-scaling. All commits go to this one repo; the auto-sync timer then keeps both machines
-converged.
-
-## Risks
-- `apple-silicon-support` tracks nixpkgs closely; a kernel/mesa bump can occasionally break the
-  build — fallback is to unpin its `nixpkgs.follows`.
-- Auto-rebuild is atomic (failed build → stays on current generation + notifies), so a bad push
-  is recoverable; a build that *succeeds but misbehaves* still needs a manual
-  `nixos-rebuild switch --rollback`.
-- `--autostash` preserves in-progress edits; per `AGENTS.md` the unit aborts + notifies on a
-  reapply conflict rather than discarding anything.
-
-## Files this will touch
-`flake.nix`, `sys/options.nix`, `sys/base.nix`, `sys/hw/nvidia.nix`, `sys/gme/steam.nix`,
-`hosts/top/configuration.nix`, `hosts/air/{configuration,hardware-configuration}.nix` (new),
-`sys/auto-sync.nix` (new), `home/prog/hypr-host.nix` (new),
-`home/prog/hypr-files/hyprland.lua`, `home/prog/quickshell-files/{SysInfo,Osd}.qml`,
-`home/prog/zsh.nix`, `AGENTS.md`.
+- **Auto-sync systemd timer** (auto-pull + auto-rebuild on both hosts, one shared
+  unit keyed off `config.networking.hostName`/`host`) — explicitly deferred; sync
+  manually (`git pull` + the `rbhome`/`rbsys` alias) for now. Revisit once the
+  shared config is proven out in practice.
+- Renaming the OS hostname (`book`) to `air` — not needed, the flake identifies the
+  host as `air` independently of the OS-level hostname.
+- Re-adding `breeze-square-overlay` to `pkgsAir` (squared Breeze corners on air) —
+  skipped for build-time reasons, see above.
+- `dnf clean all` / `journalctl --vacuum-size` for more disk headroom — still need
+  sudo, still not done. `nix-collect-garbage` (the `trash` alias, no sudo needed
+  on air) reclaimed ~4.6G once so far; rerun it before any big rebuild if disk
+  gets tight again — check `df -h /` first.
+- The 62G root partition itself is just small for this workload long-term; if
+  there's slack in the Asahi/APFS container it came from, resizing it would be
+  the real fix, but that's a partitioning decision, not something to do
+  unprompted.
